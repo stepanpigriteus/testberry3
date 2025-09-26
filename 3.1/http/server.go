@@ -13,9 +13,9 @@ import (
 )
 
 type Server struct {
-	port   string
-	logger zerolog.Logger
-	// service  domain.EventService
+	port     string
+	logger   zerolog.Logger
+	service  domain.Service
 	storage  *dbpg.DB
 	handlers domain.EventHandler
 	redis    *redis.Client
@@ -26,11 +26,11 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func NewServer(port string, logger zerolog.Logger, storage *dbpg.DB, handlers domain.EventHandler, redis *redis.Client) *Server {
+func NewServer(port string, logger zerolog.Logger, service domain.Service, storage *dbpg.DB, handlers domain.EventHandler, redis *redis.Client) *Server {
 	return &Server{
-		port:   port,
-		logger: logger,
-		// service:  service,
+		port:     port,
+		logger:   logger,
+		service:  service,
 		storage:  storage,
 		handlers: handlers,
 		redis:    redis,

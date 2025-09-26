@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-
 	"treeOne/domain"
 	"treeOne/http"
 	"treeOne/pkg"
+	"treeOne/service"
 
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/redis"
@@ -27,13 +27,15 @@ func main() {
 	if err != nil {
 		zlog.Logger.Error().Msgf("init database error %s", err)
 	}
+
+	service := service.NewService(db, zlog.Logger)
 	zlog.Logger.Info().Msg("[3/6] Init Redis")
 	redisConnStr := configs.Redis_host + ":" + configs.Redis_port
 	client := redis.New(redisConnStr, configs.Redis_pass, configs.Redis_db)
 	zlog.Logger.Info().Msg("[4/6] Init RabbitMQ")
 	var handlers domain.EventHandler
 	zlog.Logger.Info().Msg("[5/6] Starting Server")
-	server := http.NewServer(configs.Port, zlog.Logger, db, handlers, client)
+	server := http.NewServer(configs.Port, zlog.Logger, service, db, handlers, client)
 
 	err = server.RunServer()
 	if err != nil {

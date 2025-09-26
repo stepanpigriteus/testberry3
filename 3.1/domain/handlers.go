@@ -1,7 +1,7 @@
 package domain
 
 type EventHandler interface {
-	CreateEvent()
-	GetEventStatus()
-	DeleteEvent()
+	CreateNotify()
+	GetNotify()
+	DeleteNotify()
 }
