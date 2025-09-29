@@ -1,6 +1,6 @@
 module treeOne
 
-go 1.22
+go 1.23.5
 
 require (
 	github.com/rs/zerolog v1.34.0

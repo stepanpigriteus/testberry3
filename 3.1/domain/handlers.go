@@ -1,7 +1,9 @@
 package domain
 
+import "net/http"
+
 type EventHandler interface {
-	CreateNotify()
-	GetNotify()
-	DeleteNotify()
+	CreateNotify(w http.ResponseWriter, r *http.Request)
+	GetNotify(w http.ResponseWriter, r *http.Request)
+	DeleteNotify(w http.ResponseWriter, r *http.Request)
 }

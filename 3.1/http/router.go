@@ -15,7 +15,7 @@ type Route struct {
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.EventHandler) {
 	routes := []Route{
-		// {Method: http.MethodPost, Path: "/notify ", Handler: handlers.CreateEvent, MiddlewareLog: LoggerMiddleware},
+		{Method: http.MethodPost, Path: "/notify", Handler: handlers.CreateNotify},
 	}
 	for _, route := range routes {
 		finalHandler := applyMiddleware(route.Handler, route.MiddlewareLog)
@@ -35,6 +35,8 @@ func methodHandler(method string, handler http.Handler) http.Handler {
 }
 
 func applyMiddleware(h http.Handler, middleware func(http.Handler) http.Handler) http.Handler {
-	h = middleware(h)
+	if middleware != nil {
+		h = middleware(h)
+	}
 	return h
 }

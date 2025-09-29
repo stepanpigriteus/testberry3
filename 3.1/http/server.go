@@ -8,7 +8,6 @@ import (
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
-	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/redis"
 )
 
@@ -16,7 +15,7 @@ type Server struct {
 	port     string
 	logger   zerolog.Logger
 	service  domain.Service
-	storage  *dbpg.DB
+	storage  domain.Storage
 	handlers domain.EventHandler
 	redis    *redis.Client
 	srv      *http.Server
@@ -26,7 +25,7 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func NewServer(port string, logger zerolog.Logger, service domain.Service, storage *dbpg.DB, handlers domain.EventHandler, redis *redis.Client) *Server {
+func NewServer(port string, logger zerolog.Logger, service domain.Service, storage domain.Storage, handlers domain.EventHandler, redis *redis.Client) *Server {
 	return &Server{
 		port:     port,
 		logger:   logger,

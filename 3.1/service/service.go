@@ -4,15 +4,14 @@ import (
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
-	"github.com/wb-go/wbf/dbpg"
 )
 
 type Service struct {
-	db     *dbpg.DB
+	db     domain.Storage
 	logger zerolog.Logger
 }
 
-func NewService(db *dbpg.DB, logger zerolog.Logger) *Service {
+func NewService(db domain.Storage, logger zerolog.Logger) *Service {
 	return &Service{
 		db:     db,
 		logger: logger,

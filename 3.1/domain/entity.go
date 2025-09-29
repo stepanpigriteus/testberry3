@@ -3,7 +3,7 @@ package domain
 import "time"
 
 type Notify struct {
-	id       string
-	timing   time.Time
-	descript string
+	Id       string
+	Timing   time.Time
+	Descript string
 }

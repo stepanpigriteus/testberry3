@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
@@ -16,4 +17,16 @@ func NewHandleNotify(logger zerolog.Logger, service domain.Service) *HandleNotif
 		logger:  logger,
 		service: service,
 	}
+}
+
+func (h *HandleNotify) CreateNotify(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info().Msg("Endpoint works")
+}
+
+func (h *HandleNotify) GetNotify(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info().Msg("Endpoint works")
+}
+
+func (h *HandleNotify) DeleteNotify(w http.ResponseWriter, r *http.Request) {
+
 }
