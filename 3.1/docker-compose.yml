@@ -41,6 +41,18 @@ services:
     restart: always
     ports:
       - "6379:6379"
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    command: [
+      "-path=/migrations",
+      "-database=postgres://postgres:1234@postgres:5432/treeone?sslmode=disable",
+      "up"
+    ]
+    depends_on:
+      - postgres
+    restart: "on-failure"
 
 volumes:
   pgdata:
