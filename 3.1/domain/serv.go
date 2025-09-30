@@ -1,7 +1,9 @@
 package domain
 
+import "context"
+
 type Service interface {
-	CreateNotify(notify Notify) error
-	GetNotify(id string) (error, Notify)
-	DeleteNotify(id string) error
+	CreateNotify(ctx context.Context, notify Notify) error
+	GetNotify(ctx context.Context, id string) (Notify, error)
+	DeleteNotify(ctx context.Context, id string) error
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
@@ -13,7 +14,7 @@ type StorageImpl struct {
 	logger zerolog.Logger
 }
 
-func NewStorage(masterDSN string, slaveDSNs []string, logger zerolog.Logger) *StorageImpl {
+func NewStorage(ctx context.Context, masterDSN string, slaveDSNs []string, logger zerolog.Logger) *StorageImpl {
 	opts := &dbpg.Options{MaxOpenConns: 10, MaxIdleConns: 5}
 	db, err := dbpg.New(masterDSN, slaveDSNs, opts)
 	if err != nil {
@@ -25,15 +26,15 @@ func NewStorage(masterDSN string, slaveDSNs []string, logger zerolog.Logger) *St
 	}
 }
 
-func (st *StorageImpl) CreateNotify(notify domain.Notify) error {
+func (st *StorageImpl) CreateNotify(ctx context.Context, notify domain.Notify) error {
 	return nil
 }
 
-func (st *StorageImpl) GetNotify(id string) (error, domain.Notify) {
+func (st *StorageImpl) GetNotify(ctx context.Context, id string) (domain.Notify, error) {
 	var n domain.Notify
-	return nil, n
+	return n, nil
 }
 
-func (st *StorageImpl) DeleteNotify(id string) error {
+func (st *StorageImpl) DeleteNotify(ctx context.Context, id string) error {
 	return nil
 }

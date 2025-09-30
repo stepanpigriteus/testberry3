@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"treeOne/http"
 	"treeOne/pkg"
@@ -12,6 +13,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	zlog.Init()
 	zlog.Logger.Info().Msg("[1/6] Reading configuration")
 	configs := pkg.ConfigMy()
@@ -23,14 +25,15 @@ func main() {
 	)
 
 	slaveDSNs := []string{}
-	storage := storage.NewStorage(masterDSN, slaveDSNs, zlog.Logger)
-	zlog.Logger.Info().Msg("[2.1/6] Init Service")
-	service := service.NewService(storage, zlog.Logger)
-	zlog.Logger.Info().Msg("[2.2/6] Init Handlers")
-	handlers := http.NewHandleNotify(zlog.Logger, service)
+	storage := storage.NewStorage(ctx, masterDSN, slaveDSNs, zlog.Logger)
+
 	zlog.Logger.Info().Msg("[3/6] Init Redis")
 	redisConnStr := configs.Redis_host + ":" + configs.Redis_port
 	client := redis.New(redisConnStr, configs.Redis_pass, configs.Redis_db)
+	zlog.Logger.Info().Msg("[3.1/6] Init Service")
+	service := service.NewService(storage, zlog.Logger, *client)
+	zlog.Logger.Info().Msg("[3.2/6] Init Handlers")
+	handlers := http.NewHandleNotify(zlog.Logger, service, *client)
 	zlog.Logger.Info().Msg("[4/6] Init RabbitMQ")
 	zlog.Logger.Info().Msg("[5/6] Starting Server")
 
