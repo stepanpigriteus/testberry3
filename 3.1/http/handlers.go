@@ -30,17 +30,26 @@ func (h *HandleNotify) CreateNotify(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info().Msg("Endpoint works")
 	ctx := r.Context()
 	var notify domain.Notify
+
 	if err := json.NewDecoder(r.Body).Decode(&notify); err != nil {
 		http.Error(w, "invalid json: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.CreateNotify(ctx, notify)
-	if err != nil {
-		http.Error(w, "ошибка проброшена в хендлер: "+err.Error(), http.StatusBadRequest)
+	if err := h.service.CreateNotify(ctx, notify); err != nil {
+		h.logger.Error().Err(err).Msg("ошибка создания уведомления")
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "уже существует") {
+			status = http.StatusConflict
+		}
+		http.Error(w, fmt.Sprintf("ошибка создания уведомления: %v", err), status)
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	})
 }
 
 func (h *HandleNotify) GetNotify(w http.ResponseWriter, r *http.Request) {
@@ -62,5 +71,19 @@ func (h *HandleNotify) GetNotify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HandleNotify) DeleteNotify(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info().Msg("Endpoint works")
+	ctx := context.Background()
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
 
+	id := parts[2]
+	err := h.service.DeleteNotify(ctx, id)
+	if err != nil {
+		http.Error(w, "ошибка проброшена в хендлер: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	
 }

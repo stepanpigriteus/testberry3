@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
@@ -15,6 +16,7 @@ type StorageImpl struct {
 }
 
 func NewStorage(ctx context.Context, masterDSN string, slaveDSNs []string, logger zerolog.Logger) *StorageImpl {
+	fmt.Println(masterDSN)
 	opts := &dbpg.Options{MaxOpenConns: 10, MaxIdleConns: 5}
 	db, err := dbpg.New(masterDSN, slaveDSNs, opts)
 	if err != nil {
@@ -27,6 +29,18 @@ func NewStorage(ctx context.Context, masterDSN string, slaveDSNs []string, logge
 }
 
 func (st *StorageImpl) CreateNotify(ctx context.Context, notify domain.Notify) error {
+	fmt.Println(notify)
+	if err := st.db.Master.PingContext(ctx); err != nil {
+		fmt.Printf("Ошибка соединения с БД: %v\n", err)
+		return fmt.Errorf("нет соединения с БД: %w", err)
+	}
+
+	query := `INSERT INTO notify (id, timing, descript) VALUES ($1, $2, $3)`
+	_, err := st.db.ExecContext(ctx, query, notify.Id, notify.Timing, notify.Descript)
+	if err != nil {
+		fmt.Printf("Ошибка запроса: %v\nЗапрос: %s\nПараметры: %v, %v, %v\n", err, query, notify.Id, notify.Timing, notify.Descript)
+		return err
+	}
 	return nil
 }
 

@@ -11,10 +11,13 @@ type Config struct {
 	DBName    string
 	DBSSLMode string
 
-	Redis_host string
-	Redis_port string
-	Redis_pass string
-	Redis_db   int
+	Redis_host    string
+	Redis_port    string
+	Redis_pass    string
+	Redis_db      int
+	Rabb_user     string
+	Rabb_pass     string
+	Rabb_exchange string
 }
 
 func ConfigMy() *Config {
@@ -25,7 +28,7 @@ func ConfigMy() *Config {
 	configs.Port = cfg.GetString("PORT")
 	configs.DBHost = cfg.GetString("DB_HOST")
 	configs.DBUser = cfg.GetString("DB_USER")
-	configs.DBPass = cfg.GetString("DB_PASS")
+	configs.DBPass = cfg.GetString("DB_PASSWORD")
 	configs.DBName = cfg.GetString("DB_NAME")
 	configs.DBPort = cfg.GetString("DB_PORT")
 	configs.DBSSLMode = cfg.GetString("DB_SSLMODE")
@@ -33,6 +36,10 @@ func ConfigMy() *Config {
 	configs.Redis_port = cfg.GetString("REDIS_PORT")
 	configs.Redis_pass = cfg.GetString("REDIS_PASS")
 	configs.Redis_db = cfg.GetInt("REDIS_DB")
+
+	configs.Rabb_user = cfg.GetString("RABBITMQ_USER")
+	configs.Rabb_pass = cfg.GetString("RABBITMQ_PASS")
+	configs.Rabb_exchange = cfg.GetString("RABBITMQ_EXCHANGE")
 
 	return &configs
 }

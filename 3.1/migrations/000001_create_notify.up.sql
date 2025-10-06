@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS notify (
-    id TEXT PRIMARY KEY,
-    timing TIMESTAMP NOT NULL,
+    id INTEGER PRIMARY KEY,
+    timing TIMESTAMPTZ NOT NULL,
     descript TEXT
 );

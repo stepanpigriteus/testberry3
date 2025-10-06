@@ -14,12 +14,41 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7
+    container_name: treeone_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: treeone_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build: .
     container_name: treeone_app
     depends_on:
-      - postgres
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
     environment:
       PORT: ${PORT}
       DB_USER: ${DB_USER}
@@ -32,15 +61,14 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       REDIS_PASS: ${REDIS_PASS}
       REDIS_DB: ${REDIS_DB}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
     ports:
       - "8080:8080"
 
-  redis:
-    image: redis:7
-    container_name: treeone_redis
-    restart: always
-    ports:
-      - "6379:6379"
   migrate:
     image: migrate/migrate
     volumes:
@@ -56,3 +84,4 @@ services:
 
 volumes:
   pgdata:
+  rabbitmq_data:

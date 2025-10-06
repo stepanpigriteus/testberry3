@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"treeOne/domain"
 )
@@ -16,22 +15,33 @@ type Route struct {
 func RegisterRoutes(mux *http.ServeMux, handlers domain.EventHandler) {
 	routes := []Route{
 		{Method: http.MethodPost, Path: "/notify", Handler: handlers.CreateNotify},
-		{Method: http.MethodGet, Path: "/notify/{id}", Handler: handlers.GetNotify},
+		{Method: http.MethodGet, Path: "/notify/", Handler: handlers.GetNotify},
+		{Method: http.MethodDelete, Path: "/notify/", Handler: handlers.DeleteNotify},
 	}
+
+	pathHandlers := make(map[string][]Route)
 	for _, route := range routes {
-		finalHandler := applyMiddleware(route.Handler, route.MiddlewareLog)
-		mux.Handle(route.Path, methodHandler(route.Method, finalHandler))
+		pathHandlers[route.Path] = append(pathHandlers[route.Path], route)
+	}
+
+	for path, routeList := range pathHandlers {
+		mux.Handle(path, multiMethodHandler(routeList))
 	}
 }
 
-func methodHandler(method string, handler http.Handler) http.Handler {
+func multiMethodHandler(routes []Route) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf(">>> methodHandler: got %s request on %s\n", r.Method, r.URL.Path)
-		if r.Method != method {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
+
+		for _, route := range routes {
+			if r.Method == route.Method {
+				handler := http.Handler(route.Handler)
+				finalHandler := applyMiddleware(handler, route.MiddlewareLog)
+				finalHandler.ServeHTTP(w, r)
+				return
+			}
 		}
-		handler.ServeHTTP(w, r)
+
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 	})
 }
 

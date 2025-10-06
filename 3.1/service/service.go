@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
+	"github.com/wb-go/wbf/rabbitmq"
 	"github.com/wb-go/wbf/redis"
 )
 
@@ -15,13 +17,15 @@ type Service struct {
 	db     domain.Storage
 	logger zerolog.Logger
 	redis  redis.Client
+	rabbit *rabbitmq.Publisher
 }
 
-func NewService(db domain.Storage, logger zerolog.Logger, redis redis.Client) *Service {
+func NewService(db domain.Storage, logger zerolog.Logger, redis redis.Client, rabbit *rabbitmq.Publisher) *Service {
 	return &Service{
 		db:     db,
 		logger: logger,
 		redis:  redis,
+		rabbit: rabbit,
 	}
 }
 
@@ -40,6 +44,13 @@ func (s *Service) CreateNotify(ctx context.Context, notify domain.Notify) error 
 	if err := s.db.CreateNotify(ctx, notify); err != nil {
 		s.logger.Error().Err(err).Msg("failed to save notify in db")
 		return err
+	}
+
+	jnotify, _ := json.Marshal(notify)
+
+	err = s.rabbit.Publish([]byte(string(jnotify)), "test_key", "text/plain")
+	if err != nil {
+		log.Fatalf("Ошибка при публикации: %v", err)
 	}
 
 	return nil
@@ -74,5 +85,13 @@ func (s *Service) GetNotify(ctx context.Context, id string) (domain.Notify, erro
 }
 
 func (s *Service) DeleteNotify(ctx context.Context, id string) error {
+	res, err := s.redis.Del(ctx, id).Result()
+	if err != nil {
+		return fmt.Errorf("failed to delete key %s: %w", id, err)
+	}
+	if res > 0 {
+		s.logger.Info().Msgf("%d keys from redis deleted", res)
+	}
+
 	return nil
 }
