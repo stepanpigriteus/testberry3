@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/wb-go/wbf/rabbitmq"
 	"github.com/wb-go/wbf/redis"
+	"github.com/wb-go/wbf/retry"
 )
 
 type Service struct {
@@ -53,14 +54,23 @@ func (s *Service) CreateNotify(ctx context.Context, notify domain.Notify) error 
 		delay = 0
 	}
 
-	err = s.rabbit.Publish(
-		data,
-		"delay_key",
-		"application/json",
-		rabbitmq.PublishingOptions{
-			Expiration: delay,
-		},
-	)
+	strategy := retry.Strategy{
+		Attempts: 5,
+		Delay:    500 * time.Millisecond,
+		Backoff:  2,
+	}
+
+	err = retry.Do(func() error {
+		return s.rabbit.Publish(
+			data,
+			"delay_key",
+			"application/json",
+			rabbitmq.PublishingOptions{
+				Expiration: delay,
+			},
+		)
+	}, strategy)
+
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Ошибка при публикации")
 		return err
