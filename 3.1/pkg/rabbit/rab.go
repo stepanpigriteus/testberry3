@@ -4,11 +4,12 @@ import (
 	"log"
 	"time"
 
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/wb-go/wbf/rabbitmq"
 )
 
 func InitRab() (*rabbitmq.Connection, *rabbitmq.Channel, *rabbitmq.Publisher) {
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 	conn, err := rabbitmq.Connect("amqp://guest:guest@rabbitmq:5672/", 5, 2*time.Second)
 	if err != nil {
 		log.Fatalf("Не удалось подключиться: %v", err)
@@ -25,15 +26,32 @@ func InitRab() (*rabbitmq.Connection, *rabbitmq.Channel, *rabbitmq.Publisher) {
 	}
 
 	qm := rabbitmq.NewQueueManager(ch)
-	queue, err := qm.DeclareQueue("my_queue")
+
+	mainQueue, err := qm.DeclareQueue("my_queue")
 	if err != nil {
-		log.Fatalf("Ошибка при создании очереди: %v", err)
+		log.Fatalf("Ошибка при создании основной очереди: %v", err)
 	}
 
-	if err := ch.QueueBind(queue.Name, "my_key", ex.Name(), false, nil); err != nil {
-		log.Fatalf("Ошибка привязки очереди: %v", err)
+	delayQueue, err := qm.DeclareQueue("delay_queue", rabbitmq.QueueConfig{
+		Durable: true,
+		Args: amqp091.Table{
+			"x-dead-letter-exchange":    "my_exchange",
+			"x-dead-letter-routing-key": "main_key",
+		},
+	})
+	if err != nil {
+		log.Fatalf("Ошибка при создании delay очереди: %v", err)
+	}
+
+	if err := ch.QueueBind(mainQueue.Name, "main_key", ex.Name(), false, nil); err != nil {
+		log.Fatalf("Ошибка привязки основной очереди: %v", err)
+	}
+
+	if err := ch.QueueBind(delayQueue.Name, "delay_key", ex.Name(), false, nil); err != nil {
+		log.Fatalf("Ошибка привязки delay очереди: %v", err)
 	}
 
 	publisher := rabbitmq.NewPublisher(ch, ex.Name())
+
 	return conn, ch, publisher
 }

@@ -1,5 +1,8 @@
 CREATE TABLE IF NOT EXISTS notify (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     timing TIMESTAMPTZ NOT NULL,
-    descript TEXT
+    descript TEXT,
+    status TEXT,
+    retry INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );

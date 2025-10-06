@@ -6,4 +6,5 @@ type Service interface {
 	CreateNotify(ctx context.Context, notify Notify) error
 	GetNotify(ctx context.Context, id string) (Notify, error)
 	DeleteNotify(ctx context.Context, id string) error
+	CheckStatus(ctx context.Context, msg []byte) (error, bool)
 }

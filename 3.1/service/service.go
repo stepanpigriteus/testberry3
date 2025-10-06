@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"strconv"
+	"time"
 	"treeOne/domain"
 
 	"github.com/rs/zerolog"
@@ -46,11 +48,22 @@ func (s *Service) CreateNotify(ctx context.Context, notify domain.Notify) error 
 		return err
 	}
 
-	jnotify, _ := json.Marshal(notify)
+	delay := time.Until(notify.Timing)
+	if delay < 0 {
+		delay = 0
+	}
 
-	err = s.rabbit.Publish([]byte(string(jnotify)), "test_key", "text/plain")
+	err = s.rabbit.Publish(
+		data,
+		"delay_key",
+		"application/json",
+		rabbitmq.PublishingOptions{
+			Expiration: delay,
+		},
+	)
 	if err != nil {
-		log.Fatalf("Ошибка при публикации: %v", err)
+		s.logger.Error().Err(err).Msg("Ошибка при публикации")
+		return err
 	}
 
 	return nil
@@ -59,7 +72,6 @@ func (s *Service) CreateNotify(ctx context.Context, notify domain.Notify) error 
 func (s *Service) GetNotify(ctx context.Context, id string) (domain.Notify, error) {
 	var notify domain.Notify
 	val, err := s.redis.Get(ctx, id)
-	fmt.Println(val)
 	if err == nil {
 		if e := json.Unmarshal([]byte(val), &notify); e == nil {
 			return notify, nil
@@ -93,5 +105,59 @@ func (s *Service) DeleteNotify(ctx context.Context, id string) error {
 		s.logger.Info().Msgf("%d keys from redis deleted", res)
 	}
 
+	err = s.db.DeleteNotify(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (s *Service) CheckStatus(ctx context.Context, msg []byte) (error, bool) {
+	var notify domain.Notify
+	if err := json.Unmarshal(msg, &notify); err != nil {
+		s.logger.Warn().Err(err).Msg("failed to unmarshal notify from request")
+		return err, false
+	}
+	idStr := strconv.Itoa(notify.Id)
+	val, err := s.redis.Get(ctx, idStr)
+	if err != nil {
+		if err.Error() == "redis: nil" {
+			s.logger.Info().Msgf("ключ %d не найден в redis, проверяем БД", notify.Id)
+			dbNotify, dbErr := s.db.GetNotify(ctx, idStr)
+			if dbErr != nil {
+				if errors.Is(dbErr, sql.ErrNoRows) {
+					s.logger.Warn().Msgf("уведомление id=%d не найдено в БД", notify.Id)
+					return fmt.Errorf("уведомление id=%d не найдено", notify.Id), false
+				}
+				return dbErr, false
+			}
+			data, e := json.Marshal(dbNotify)
+			if e == nil {
+				if setErr := s.redis.Set(ctx, idStr, string(data)); setErr != nil {
+					s.logger.Warn().Err(setErr).Msgf("не удалось сохранить уведомление id=%d в Redis", notify.Id)
+				}
+			}
+
+			if dbNotify.Status == "cancelled" {
+				s.logger.Warn().Msgf("уведомление id=%d отменено", notify.Id)
+				return nil, false
+			}
+			return nil, true
+		}
+		s.logger.Error().Err(err).Msg("ошибка при чтении из redis")
+		return err, false
+	}
+
+	if err := json.Unmarshal([]byte(val), &notify); err != nil {
+		s.logger.Warn().Err(err).Msg("failed to unmarshal notify from redis")
+		return err, false
+	}
+
+	if notify.Status == "cancelled" {
+		s.logger.Warn().Msgf("уведомление id=%d отменено", notify.Id)
+		return nil, false
+	}
+
+	return nil, true
 }

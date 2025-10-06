@@ -67,7 +67,11 @@ func (h *HandleNotify) GetNotify(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ошибка проброшена в хендлер: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Println(notify)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(notify); err != nil {
+		http.Error(w, "ошибка кодирования ответа: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *HandleNotify) DeleteNotify(w http.ResponseWriter, r *http.Request) {
@@ -85,5 +89,5 @@ func (h *HandleNotify) DeleteNotify(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ошибка проброшена в хендлер: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 }

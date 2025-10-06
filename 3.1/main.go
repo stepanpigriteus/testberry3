@@ -59,6 +59,13 @@ func main() {
 
 	go func() {
 		for msg := range msgChan {
+			err, flag := service.CheckStatus(ctx, msg)
+			if err != nil {
+				zlog.Logger.Err(err).Msg("Check status failed")
+			}
+			if !flag {
+				continue
+			}
 			fmt.Printf("Получено: %s\n", msg)
 		}
 	}()
