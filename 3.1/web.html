@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Notify Service Test</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #fafafa; }
+    h2 { margin-top: 30px; }
+    input, textarea, button {
+      margin: 5px 0;
+      padding: 6px;
+      font-size: 14px;
+    }
+    textarea { width: 300px; height: 60px; }
+    pre { background: #eee; padding: 10px; white-space: pre-wrap; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Notify Service Tester</h1>
+
+  <h2>Создать уведомление</h2>
+  <form id="createForm">
+    <label>ID:</label><br>
+    <input id="id" type="number" required><br>
+    <label>Время (формат ISO):</label><br>
+    <input id="timing" type="datetime-local" required><br>
+    <label>Описание:</label><br>
+    <textarea id="desc" required></textarea><br>
+    <button type="submit">Создать</button>
+  </form>
+
+  <h2>Получить уведомление</h2>
+  <input id="getId" type="number" placeholder="ID">
+  <button id="getBtn">Получить</button>
+
+  <h2>Удалить уведомление</h2>
+  <input id="delId" type="number" placeholder="ID">
+  <button id="delBtn">Удалить</button>
+
+  <h2>Ответ</h2>
+  <pre id="output"></pre>
+
+  <script>
+    const apiBase = "http://localhost:8080";
+
+    function show(res) {
+      document.getElementById("output").textContent = JSON.stringify(res, null, 2);
+    }
+
+    document.getElementById("createForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const id = Number(document.getElementById("id").value);
+      const desc = document.getElementById("desc").value;
+      const timing = document.getElementById("timing").value;
+      const notify = {
+        id,
+        timing: new Date(timing).toISOString(),
+        descript: desc,
+        status: "pending",
+        retry: 0,
+        created_at: new Date().toISOString(),
+      };
+      try {
+        const res = await fetch(`${apiBase}/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(notify),
+        });
+        show(await res.json());
+      } catch (err) {
+        show({ error: err.message });
+      }
+    };
+
+    document.getElementById("getBtn").onclick = async () => {
+      const id = document.getElementById("getId").value;
+      if (!id) return;
+      try {
+        const res = await fetch(`${apiBase}/notify/${id}`);
+        show(await res.json());
+      } catch (err) {
+        show({ error: err.message });
+      }
+    };
+
+    document.getElementById("delBtn").onclick = async () => {
+      const id = document.getElementById("delId").value;
+      if (!id) return;
+      try {
+        const res = await fetch(`${apiBase}/notify/${id}`, { method: "DELETE" });
+        show(await res.text());
+      } catch (err) {
+        show({ error: err.message });
+      }
+    };
+  </script>
+</body>
+</html>
