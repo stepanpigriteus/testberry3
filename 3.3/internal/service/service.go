@@ -21,3 +21,23 @@ func NewService(ctx context.Context, storage domain.Storage, logger zerolog.Logg
 		redis:  redis,
 	}
 }
+
+func (s *Serv) CreateComments(ctx context.Context, comment domain.Comment) error {
+
+	err := s.db.CreateComments(ctx, comment)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to save comment in db")
+		return err
+	}
+	return nil
+}
+
+func (s *Serv) GetComments(ctx context.Context, id int) (domain.Comment, error) {
+
+	comments, err := s.db.GetComments(ctx, id)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed to Get shorten in db")
+		return domain.Comment{}, err
+	}
+	return comments, nil
+}
