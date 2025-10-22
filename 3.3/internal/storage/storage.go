@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"treethree/domain"
 
 	"github.com/rs/zerolog"
@@ -71,6 +72,31 @@ func (s *StorageImpl) GetComments(ctx context.Context, id int) (domain.Comment, 
 	root.Children = children
 
 	return root, nil
+}
+
+func (s *StorageImpl) DeleteComments(ctx context.Context, id int) error {
+	res, err := s.db.ExecContext(ctx, `
+		WITH RECURSIVE subcomments AS (
+			SELECT id FROM comments WHERE id = $1
+			UNION ALL
+			SELECT c.id
+			FROM comments c
+			INNER JOIN subcomments sc ON c.parent_id = sc.id
+		)
+		UPDATE comments
+		SET deleted_at = NOW()
+		WHERE id IN (SELECT id FROM subcomments)
+	`, id)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("failed delete comments")
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *StorageImpl) getChildren(ctx context.Context, parentID int) ([]*domain.Comment, error) {

@@ -2,10 +2,13 @@ package httpsh
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"treethree/domain"
 
 	"github.com/rs/zerolog"
@@ -47,6 +50,7 @@ func (h *CommentsHandlers) GetComments(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	h.logger.Info().Msg("GetComments handler called >>>")
 	query := r.URL.Query().Get("parent")
+	fmt.Println(r.URL.Path)
 	id, err := strconv.Atoi(query)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("incorrect query parameter,  error : %v", err))
@@ -54,14 +58,39 @@ func (h *CommentsHandlers) GetComments(w http.ResponseWriter, r *http.Request) {
 	}
 	comments, err := h.serv.GetComments(ctx, id)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "не получилось вытащить")
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "Комментарий не найден")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "Ошибка при получении комментариев")
 		return
 	}
 	writeJSON(w, http.StatusOK, comments)
 }
 
 func (h *CommentsHandlers) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	h.logger.Info().Msg("DeleteComments handler called >>>")
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 2 || parts[2] == "" {
+		h.logger.Error().Msg("Incorrect url path")
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("incorrect url path,  error : %w", parts[2]))
+	}
+	id, err := strconv.Atoi(parts[2])
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("incorrect url path,  error : %v", err))
+		return
+	}
 
+	err = h.serv.DeleteComments(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "Комментарий не найден")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "Не удалось удалить комментарий")
+		return
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
