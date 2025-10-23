@@ -54,6 +54,21 @@ func (s *MinioStorage) UploadToProcessed(ctx context.Context, objectName string,
 	return s.upload(ctx, s.ProcessedBucket, objectName, file, fileSize, contentType)
 }
 
+func (m *MinioStorage) GetImage(ctx context.Context, bucket, filename string) ([]byte, error) {
+	object, err := m.client.GetObject(ctx, bucket, filename, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object: %w", err)
+	}
+	defer object.Close()
+
+	data, err := io.ReadAll(object)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read object: %w", err)
+	}
+
+	return data, nil
+}
+
 func (s *MinioStorage) upload(ctx context.Context, bucket, object string, file io.Reader, size int64, contentType string) (string, error) {
 	_, err := s.client.PutObject(ctx, bucket, object, file, size, minio.PutObjectOptions{
 		ContentType: contentType,
@@ -62,6 +77,7 @@ func (s *MinioStorage) upload(ctx context.Context, bucket, object string, file i
 		return "", fmt.Errorf("upload to bucket %s failed: %w", bucket, err)
 	}
 
-	url := fmt.Sprintf("https://%s/%s/%s", s.client.EndpointURL().Host, bucket, object)
+	// url := fmt.Sprintf("https://%s/%s/%s", s.client.EndpointURL().Host, bucket, object)
+	url := object
 	return url, nil
 }

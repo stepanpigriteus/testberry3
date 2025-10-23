@@ -3,8 +3,10 @@ package httpsh
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"threeFour/domain"
 
 	"github.com/rs/zerolog"
@@ -48,7 +50,7 @@ func (h *HandlersImpl) Upload(w http.ResponseWriter, r *http.Request) {
 	contentType := header.Header.Get("Content-Type")
 	h.logger.Info().Str("contentType", contentType).Msg("uploading to service")
 
-	err = h.serv.Upload(ctx, domain.ImageData{
+	id, err := h.serv.Upload(ctx, domain.ImageData{
 		Bytes:       data,
 		ContentType: contentType,
 		Filename:    header.Filename,
@@ -59,11 +61,33 @@ func (h *HandlersImpl) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Info().Msg("upload completed successfully")
+	h.logger.Info().Msg("upload completed successfully: id " + id)
 	writeJSON(w, http.StatusCreated, "Image upload succesfully")
 }
 
 func (h *HandlersImpl) Get(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	h.logger.Info().Msg("Upload handler called")
+	path := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+
+	if len(path) != 2 {
+		writeError(w, http.StatusBadRequest, "incorrect url path")
+		return
+	}
+	id := path[len(path)-1]
+	data, err := h.serv.Get(ctx, id)
+	if err != nil {
+		h.logger.Error().Err(err).Str("id", id).Msg("failed to get image")
+		http.Error(w, "image not found", http.StatusNotFound)
+		return
+	}
+	contentType := http.DetectContentType(data)
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Header().Set("Cache-Control", "public, max-age=31536000")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 
 }
 

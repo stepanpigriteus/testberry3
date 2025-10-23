@@ -11,18 +11,21 @@ services:
     depends_on:
       - kafka
       - minio
-      - db
+      - postgres
       - migrate
     environment:
       APP_PORT: ${APP_PORT}
       KAFKA_BROKERS: kafka:${KAFKA_PORT_1}
       KAFKA_TOPIC: ${KAFKA_TOPIC}
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
-      MINIO_ENDPOINT: minio:${MINIO_PORT_API}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    restart: always
+    networks:
+      - wbf_network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -32,6 +35,9 @@ services:
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
     ports:
       - "${ZOOKEEPER_CLIENT_PORT}:${ZOOKEEPER_CLIENT_PORT}"
+    restart: always
+    networks:
+      - wbf_network
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
@@ -48,6 +54,9 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
       KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+    restart: always
+    networks:
+      - wbf_network
 
   minio:
     image: minio/minio:latest
@@ -61,8 +70,11 @@ services:
     command: server /data --console-address ":${MINIO_PORT_CONSOLE}"
     volumes:
       - minio_data:/data
+    restart: always
+    networks:
+      - wbf_network
 
-  db:
+  postgres:
     image: postgres:15
     container_name: wbf_db
     restart: always
@@ -74,21 +86,30 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - wbf_network
 
   migrate:
     image: migrate/migrate:v4.15.2
     container_name: wbf_migrate
-    command: [
-      "-path", "/migrations",
-      "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable",
-      "up"
-    ]
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable",
+        "up"
+      ]
     volumes:
       - ./migrations:/migrations
     depends_on:
-      - db
-    restart: "on-failure"
+      - postgres
+    restart: on-failure
+    networks:
+      - wbf_network
 
 volumes:
   pg_data:
   minio_data:
+
+networks:
+  wbf_network:
+    driver: bridge

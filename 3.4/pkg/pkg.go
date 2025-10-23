@@ -40,12 +40,11 @@ func ConfigMy() *Config {
 	}
 
 	cfgData.AppPort = cfg.GetString("APP_PORT")
-
-	cfgData.DBHost = cfg.GetString("DB_HOST")
-	cfgData.DBUser = cfg.GetString("DB_USER")
-	cfgData.DBPass = cfg.GetString("DB_PASSWORD")
-	cfgData.DBName = cfg.GetString("DB_NAME")
-	cfgData.DBPort = cfg.GetString("DB_PORT")
+	cfgData.DBHost = cfg.GetString("POSTGRES_HOST")
+	cfgData.DBUser = cfg.GetString("POSTGRES_USER")
+	cfgData.DBPass = cfg.GetString("POSTGRES_PASSWORD")
+	cfgData.DBName = cfg.GetString("POSTGRES_DB")
+	cfgData.DBPort = cfg.GetString("POSTGRES_PORT")
 	cfgData.DBSSLMode = cfg.GetString("DB_SSLMODE")
 
 	cfgData.KafkaBrokers = cfg.GetString("KAFKA_BROKERS")

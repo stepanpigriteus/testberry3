@@ -1,3 +1,7 @@
 package domain
 
-type DB interface{}
+import "context"
+
+type DB interface {
+	Create(ctx context.Context, original string) (string, error)
+}
