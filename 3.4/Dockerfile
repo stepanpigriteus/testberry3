@@ -9,16 +9,18 @@ RUN go mod download
 
 COPY . .
 COPY .env .env
+COPY assets /assets 
 WORKDIR /app/cmd
-
 RUN go build -o /server .
 
 FROM debian:bookworm-slim
 
 WORKDIR /app
 
+
 COPY --from=builder /server .
 COPY --from=builder /app/.env .env
+COPY --from=builder /assets /assets  
 
 EXPOSE 8080
 

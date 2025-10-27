@@ -77,7 +77,30 @@ func (s *MinioStorage) upload(ctx context.Context, bucket, object string, file i
 		return "", fmt.Errorf("upload to bucket %s failed: %w", bucket, err)
 	}
 
-	// url := fmt.Sprintf("https://%s/%s/%s", s.client.EndpointURL().Host, bucket, object)
 	url := object
 	return url, nil
+}
+
+func (s *MinioStorage) Delete(ctx context.Context, filename string) error {
+	if err := s.deleteFromBucket(ctx, s.UploadsBucket, filename); err != nil {
+		return fmt.Errorf("delete from uploads: %w", err)
+	}
+
+	suffixes := []string{"Res", "Min", "Water"}
+	for _, suffix := range suffixes {
+		name := suffix + filename
+		if err := s.deleteFromBucket(ctx, s.ProcessedBucket, name); err != nil {
+			return fmt.Errorf("delete from processed (%s): %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *MinioStorage) deleteFromBucket(ctx context.Context, bucket, object string) error {
+	err := s.client.RemoveObject(ctx, bucket, object, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete object %s from bucket %s: %w", object, bucket, err)
+	}
+	return nil
 }

@@ -9,4 +9,5 @@ type MinioInt interface {
 	UploadToUploads(ctx context.Context, objectName string, file io.Reader, fileSize int64, contentType string) (string, error)
 	UploadToProcessed(ctx context.Context, objectName string, file io.Reader, fileSize int64, contentType string) (string, error)
 	GetImage(ctx context.Context, bucket, filename string) ([]byte, error)
+	Delete(ctx context.Context, filename string) error
 }

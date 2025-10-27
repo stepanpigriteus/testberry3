@@ -1,6 +1,8 @@
 package httpsh
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -67,32 +69,71 @@ func (h *HandlersImpl) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (h *HandlersImpl) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	h.logger.Info().Msg("Upload handler called")
-	path := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	id := strings.TrimPrefix(r.URL.Path, "/get/")
+	path := strings.Split(strings.Trim(id, "/"), "/")
+	if len(path) != 2 {
+		writeError(w, http.StatusBadRequest, "incorrect url path")
+		return
+	}
+	final := path[1]
+	fmt.Println(final)
+	files, err := h.serv.Get(ctx, final)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("failed to get images")
+		http.Error(w, "failed to get images", http.StatusInternalServerError)
+		return
+	}
+	if files == nil {
+		http.Error(w, "image still processing", http.StatusAccepted)
+		return
+	}
 
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+
+	names := []string{"resized.jpg", "watermark.jpg", "thumbnail.jpg"}
+	for i, data := range files {
+		f, err := zipWriter.Create(names[i])
+		if err != nil {
+			h.logger.Err(err).Msg("failed to create zip entry")
+			continue
+		}
+		if _, err := f.Write(data); err != nil {
+			h.logger.Err(err).Msg("failed to write to zip entry")
+			continue
+		}
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		h.logger.Err(err).Msg("failed to close zip writer")
+		http.Error(w, "failed to create zip", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s_images.zip\"", final))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
+	w.WriteHeader(http.StatusOK)
+	w.Write(buf.Bytes())
+}
+
+func (h *HandlersImpl) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	h.logger.Info().Msg("Delete handler called")
+	path := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(path) != 2 {
 		writeError(w, http.StatusBadRequest, "incorrect url path")
 		return
 	}
 	id := path[len(path)-1]
-	data, err := h.serv.Get(ctx, id)
+	err := h.serv.Delete(ctx, id)
 	if err != nil {
-		h.logger.Error().Err(err).Str("id", id).Msg("failed to get image")
-		http.Error(w, "image not found", http.StatusNotFound)
+		h.logger.Error().Err(err).Str("id", id).Msg("failed to delete image")
+		writeError(w, http.StatusBadRequest, "failed to delete image")
 		return
 	}
-	contentType := http.DetectContentType(data)
-
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.Header().Set("Cache-Control", "public, max-age=31536000")
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
-
-}
-
-func (h *HandlersImpl) Delete(w http.ResponseWriter, r *http.Request) {
-
+	h.logger.Info().Msg("upload deleted successfully: id " + id)
+	writeJSON(w, http.StatusOK, "Image deleted succesfully")
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
