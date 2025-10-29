@@ -64,7 +64,8 @@ func (h *HandlersImpl) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.logger.Info().Msg("upload completed successfully: id " + id)
-	writeJSON(w, http.StatusCreated, "Image upload succesfully")
+	writeJSON(w, http.StatusCreated, fmt.Sprintf("Image upload successfully: id %s", id))
+
 }
 
 func (h *HandlersImpl) Get(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +92,7 @@ func (h *HandlersImpl) Get(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	names := []string{"resized.jpg", "watermark.jpg", "thumbnail.jpg"}
+	names := []string{"watermark.jpg", "resized.jpg", "thumbnail.jpg"}
 	for i, data := range files {
 		f, err := zipWriter.Create(names[i])
 		if err != nil {

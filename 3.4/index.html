@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>WBF Image Manager</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 2rem;
+      color: #333;
+    }
+    h1 { text-align: center; margin-bottom: 2rem; }
+    .block {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    input[type="file"], input[type="text"] {
+      display: block;
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      max-width: 400px;
+    }
+    button {
+      background: #007aff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #005fcc; }
+    img {
+      max-width: 200px;
+      margin: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .images { display: flex; flex-wrap: wrap; gap: 10px; }
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧩 WBF Image Manager</h1>
+
+  <div class="block">
+    <h2>📤 Загрузить изображение</h2>
+    <input type="file" id="fileInput" accept="image/*" />
+    <button id="uploadBtn">Загрузить</button>
+    <div class="status" id="uploadStatus"></div>
+  </div>
+
+  <div class="block">
+    <h2>📊 Проверить статус и получить результат</h2>
+    <input type="text" id="imageIdInput" placeholder="Введите image ID..." />
+    <button id="checkBtn">Проверить</button>
+    <div class="status" id="statusText"></div>
+    <div class="images" id="imageResults"></div>
+  </div>
+
+  <div class="block">
+    <h2>🗑️ Удалить изображение</h2>
+    <input type="text" id="deleteId" placeholder="Введите image ID..." />
+    <button id="deleteBtn">Удалить</button>
+    <div class="status" id="deleteStatus"></div>
+  </div>
+
+  <script>
+    const API = "http://localhost:8080";
+
+    // ---- UPLOAD ----
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const file = document.getElementById("fileInput").files[0];
+      const statusEl = document.getElementById("uploadStatus");
+      if (!file) return alert("Выберите файл");
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      statusEl.textContent = "⏳ Загрузка...";
+      const res = await fetch(`${API}/upload`, { method: "POST", body: formData });
+      const text = await res.text();
+      statusEl.textContent = text;
+
+      // Если в ответе есть id, выделим его
+      const match = text.match(/[0-9a-fA-F-]{36}/);
+      if (match) {
+        const id = match[0];
+        statusEl.innerHTML = `✅ Загружено! ID: <b>${id}</b>`;
+        document.getElementById("imageIdInput").value = id;
+        document.getElementById("deleteId").value = id;
+      }
+    });
+
+    // ---- CHECK STATUS / GET RESULT ----
+    document.getElementById("checkBtn").addEventListener("click", async () => {
+      const id = document.getElementById("imageIdInput").value.trim();
+      const statusEl = document.getElementById("statusText");
+      const imagesEl = document.getElementById("imageResults");
+      if (!id) return alert("Введите ID изображения");
+
+      statusEl.textContent = "⏳ Проверяем...";
+      imagesEl.innerHTML = "";
+
+      const res = await fetch(`${API}/image/${id}`);
+      if (res.status === 202) {
+        statusEl.textContent = "⚙️ Изображение еще обрабатывается...";
+        return;
+      }
+      if (!res.ok) {
+        statusEl.textContent = `❌ Ошибка: ${res.status}`;
+        return;
+      }
+
+      // Если вернулся ZIP — просто скачать
+      const contentType = res.headers.get("Content-Type");
+      if (contentType.includes("application/zip")) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${id}_images.zip`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        statusEl.textContent = "✅ ZIP скачан";
+        return;
+      }
+
+      // Если вернулся JSON с путями
+      const data = await res.json();
+      statusEl.textContent = "✅ Готово!";
+
+      imagesEl.innerHTML = "";
+      ["thumbnail_path", "watermark_path", "resized_path"].forEach(key => {
+        if (data[key]) {
+          const img = document.createElement("img");
+          img.src = `${API}/${data[key]}`;
+          img.alt = key;
+          imagesEl.appendChild(img);
+        }
+      });
+    });
+
+    // ---- DELETE ----
+    document.getElementById("deleteBtn").addEventListener("click", async () => {
+      const id = document.getElementById("deleteId").value.trim();
+      const statusEl = document.getElementById("deleteStatus");
+      if (!id) return alert("Введите ID изображения");
+
+      statusEl.textContent = "⏳ Удаляем...";
+      const res = await fetch(`${API}/image/${id}`, { method: "DELETE" });
+      const text = await res.text();
+      statusEl.textContent = text;
+    });
+  </script>
+</body>
+</html>

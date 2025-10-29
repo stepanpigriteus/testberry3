@@ -8,7 +8,6 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-
 	"io"
 
 	"github.com/disintegration/imaging"
@@ -30,24 +29,27 @@ func ProcessImage(src image.Image, watermarkPath, format string) ([]io.Reader, e
 	scale := float64(bounds.Dx()) * 0.5 / float64(wb.Dx())
 	watermarkScaled := imaging.Resize(watermarkImg, int(float64(wb.Dx())*scale), 0, imaging.Lanczos)
 
+	base := imaging.Clone(src)
+	dst := imaging.New(bounds.Dx(), bounds.Dy(), image.Transparent)
+	draw.Draw(dst, bounds, base, image.Point{}, draw.Src)
+
 	offsetX := (bounds.Dx() - watermarkScaled.Bounds().Dx()) / 2
 	offsetY := (bounds.Dy() - watermarkScaled.Bounds().Dy()) / 2
 
-	watermarked := imaging.Clone(src)
 	draw.Draw(
-		watermarked,
+		dst,
 		image.Rect(offsetX, offsetY, offsetX+watermarkScaled.Bounds().Dx(), offsetY+watermarkScaled.Bounds().Dy()),
 		watermarkScaled,
 		image.Point{},
 		draw.Over,
 	)
 
-	images := []image.Image{thumb, resized, watermarked}
-	var readers []io.Reader
+	images := []image.Image{thumb, resized, dst}
 
+	var readers []io.Reader
 	for _, img := range images {
 		buf := new(bytes.Buffer)
-		if err := encodeImage(buf, img, format); err != nil {
+		if err := EncodeImage(buf, img, format); err != nil {
 			return nil, err
 		}
 		readers = append(readers, buf)
@@ -56,10 +58,10 @@ func ProcessImage(src image.Image, watermarkPath, format string) ([]io.Reader, e
 	return readers, nil
 }
 
-func encodeImage(w io.Writer, img image.Image, format string) error {
+func EncodeImage(w io.Writer, img image.Image, format string) error {
 	switch format {
 	case "jpeg", "jpg":
-		return jpeg.Encode(w, img, &jpeg.Options{Quality: 90})
+		return jpeg.Encode(w, img, &jpeg.Options{Quality: 100})
 	case "png":
 		return png.Encode(w, img)
 	case "gif":
