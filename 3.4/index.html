@@ -49,7 +49,7 @@
   </style>
 </head>
 <body>
-  <h1>🧩 WBF Image Manager</h1>
+  <h1>🧩 Image Manager</h1>
 
   <div class="block">
     <h2>📤 Загрузить изображение</h2>
@@ -76,7 +76,6 @@
   <script>
     const API = "http://localhost:8080";
 
-    // ---- UPLOAD ----
     document.getElementById("uploadBtn").addEventListener("click", async () => {
       const file = document.getElementById("fileInput").files[0];
       const statusEl = document.getElementById("uploadStatus");
@@ -89,8 +88,6 @@
       const res = await fetch(`${API}/upload`, { method: "POST", body: formData });
       const text = await res.text();
       statusEl.textContent = text;
-
-      // Если в ответе есть id, выделим его
       const match = text.match(/[0-9a-fA-F-]{36}/);
       if (match) {
         const id = match[0];
@@ -100,7 +97,7 @@
       }
     });
 
-    // ---- CHECK STATUS / GET RESULT ----
+
     document.getElementById("checkBtn").addEventListener("click", async () => {
       const id = document.getElementById("imageIdInput").value.trim();
       const statusEl = document.getElementById("statusText");
@@ -120,7 +117,7 @@
         return;
       }
 
-      // Если вернулся ZIP — просто скачать
+
       const contentType = res.headers.get("Content-Type");
       if (contentType.includes("application/zip")) {
         const blob = await res.blob();
@@ -134,7 +131,6 @@
         return;
       }
 
-      // Если вернулся JSON с путями
       const data = await res.json();
       statusEl.textContent = "✅ Готово!";
 
@@ -149,7 +145,7 @@
       });
     });
 
-    // ---- DELETE ----
+
     document.getElementById("deleteBtn").addEventListener("click", async () => {
       const id = document.getElementById("deleteId").value.trim();
       const statusEl = document.getElementById("deleteStatus");
