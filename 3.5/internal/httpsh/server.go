@@ -4,19 +4,20 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
+
 	"threeFive/domain"
 	"threeFive/internal/db"
-	"time"
 
 	"github.com/rs/zerolog"
 )
 
 type Server struct {
-	port     string
-	logger   zerolog.Logger
-	service  domain.Service
-	db       *db.DB
-	storage  domain.MinioInt
+	port    string
+	logger  zerolog.Logger
+	service domain.Service
+	db      *db.DB
+
 	handlers domain.Handlers
 	srv      *http.Server
 }
@@ -25,13 +26,12 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func NewServer(port string, logger zerolog.Logger, service domain.Service, handlers domain.Handlers, db *db.DB, storage domain.MinioInt) *Server {
+func NewServer(port string, logger zerolog.Logger, service domain.Service, handlers domain.Handlers, db *db.DB) *Server {
 	return &Server{
 		port:     port,
 		logger:   logger,
 		service:  service,
 		db:       db,
-		storage:  storage,
 		handlers: handlers,
 	}
 }

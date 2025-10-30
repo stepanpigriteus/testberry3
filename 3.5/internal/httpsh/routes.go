@@ -1,74 +1,82 @@
 package httpsh
 
 import (
+	"context"
 	"net/http"
 	"strings"
+
 	"threeFive/domain"
 )
 
-type Route struct {
-	Method        string
-	Path          string
-	Handler       http.HandlerFunc
-	MiddlewareLog func(http.Handler) http.Handler
-}
+type contextKey string
+
+const eventIDKey contextKey = "eventID"
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.Handlers) {
-	routes := []Route{
-		{Method: http.MethodPost, Path: "/events", Handler: handlers.Events},
-		{Method: http.MethodGet, Path: "/events/", Handler: handlers.Get},
-	}
 
-	for _, route := range routes {
-		handler := applyMiddleware(http.Handler(route.Handler), route.MiddlewareLog)
-		mux.Handle(route.Path, methodHandler(route.Method, handler))
-	}
-	mux.Handle("/events/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/events", methodHandler(http.MethodPost, handlers.Events))
+	// Все роуты вида /events/{id}/*
+	mux.HandleFunc("/events/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/events/")
-		parts := strings.Split(strings.Trim(path, "/"), "/")
+		parts := strings.SplitN(strings.Trim(path, "/"), "/", 2)
 
+		// GET /events/ - список всех мероприятий
 		if len(parts) == 0 || parts[0] == "" {
-			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+			if r.Method == http.MethodGet {
+				handlers.Gets(w, r)
+				return
+			}
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
-		id := parts[0]
+		eventID := parts[0]
+		ctx := context.WithValue(r.Context(), eventIDKey, eventID)
 
-		switch {
-		case len(parts) == 1 && r.Method == http.MethodGet:
-			r.URL.Query().Add("id", id)
-			handlers.Get(w, r)
+		// GET /events/{id} - информация о конкретном мероприятии
+		if len(parts) == 1 {
+			if r.Method == http.MethodGet {
+				handlers.Gets(w, r.WithContext(ctx))
+				return
+			}
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
+		}
 
-		case len(parts) == 2 && parts[1] == "book" && r.Method == http.MethodPost:
-			r.URL.Query().Add("id", id)
-			handlers.Book(w, r)
-			return
+		// Роуты с действиями: /events/{id}/{action}
+		action := parts[1]
+		switch action {
+		case "book":
+			if r.Method == http.MethodPost {
+				handlers.Book(w, r.WithContext(ctx))
+				return
+			}
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 
-		case len(parts) == 2 && parts[1] == "confirm" && r.Method == http.MethodPost:
-			r.URL.Query().Add("id", id)
-			handlers.Confirm(w, r)
-			return
+		case "confirm":
+			if r.Method == http.MethodPost {
+				handlers.Confirm(w, r.WithContext(ctx))
+				return
+			}
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 
 		default:
 			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		}
-	}))
+	})
 }
 
-func methodHandler(method string, next http.Handler) http.Handler {
+func methodHandler(method string, handler http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != method {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		next.ServeHTTP(w, r)
+		handler(w, r)
 	})
 }
 
-func applyMiddleware(h http.Handler, middleware func(http.Handler) http.Handler) http.Handler {
-	if middleware != nil {
-		return middleware(h)
-	}
-	return h
+func GetEventID(r *http.Request) (string, bool) {
+	id, ok := r.Context().Value(eventIDKey).(string)
+	return id, ok
 }
