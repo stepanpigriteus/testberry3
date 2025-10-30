@@ -25,10 +25,9 @@ func main() {
 	)
 	slaveDSNs := []string{}
 	dataBase := db.NewDb(ctx, masterDSN, slaveDSNs, zlog.Logger)
-
 	zlog.Logger.Info().Msg("[2/6] Init Minio")
-
 	zlog.Logger.Info().Msg("[3/6] Init Kafka")
+
 	err := pkg.CreateTopic([]string{configs.KafkaBrokers}, configs.KafkaTopic)
 	if err != nil {
 		zlog.Logger.Fatal().Err(err).Msg("failed to create Kafka topic")

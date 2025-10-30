@@ -23,22 +23,20 @@ type Config struct {
 
 	ZookeeperHost string
 	ZookeeperPort string
-
-	MinioEndpoint  string
-	MinioAccessKey string
-	MinioSecretKey string
-	MinioBucket    string
 }
 
 func ConfigMy() *Config {
-	var cfgData Config
-	cfg := config.New()
 
+	cfg := config.New()
+	cfg.EnableEnv("")
 	err := cfg.LoadEnvFiles(".env")
 	if err != nil {
 		log.Fatal("can't load .env:", err)
 	}
-
+	var cfgData Config
+	if cfgData.KafkaBrokers == "" {
+		cfgData.KafkaBrokers = "kafka:" + cfgData.KafkaPort
+	}
 	cfgData.AppPort = cfg.GetString("APP_PORT")
 	cfgData.DBHost = cfg.GetString("POSTGRES_HOST")
 	cfgData.DBUser = cfg.GetString("POSTGRES_USER")
@@ -47,7 +45,11 @@ func ConfigMy() *Config {
 	cfgData.DBPort = cfg.GetString("POSTGRES_PORT")
 	cfgData.DBSSLMode = cfg.GetString("DB_SSLMODE")
 
-	cfgData.KafkaBrokers = cfg.GetString("KAFKA_BROKERS")
+	if cfgData.KafkaBrokers == "" {
+		cfgData.KafkaBrokers = "kafka:" + cfgData.KafkaPort
+	} else {
+		cfgData.KafkaBrokers = cfg.GetString("KAFKA_BROKERS")
+	}
 	cfgData.KafkaTopic = cfg.GetString("KAFKA_TOPIC")
 	cfgData.KafkaGroupID = cfg.GetString("KAFKA_GROUP_ID")
 	cfgData.KafkaPort = cfg.GetString("KAFKA_PORT_1")

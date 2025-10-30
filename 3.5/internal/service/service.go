@@ -24,3 +24,19 @@ func NewService(ctx context.Context, producer *kafka.Producer, consumer *kafka.C
 		db:       db,
 	}
 }
+
+func (s *Serv) Gets() {
+
+}
+
+func (s *Serv) Book() {
+
+}
+
+func (s *Serv) Confirm() {
+
+}
+
+func (s *Serv) Events() {
+
+}
