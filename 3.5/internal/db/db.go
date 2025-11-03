@@ -42,3 +42,18 @@ func (d *DB) GetEvent(ctx context.Context, id string) (domain.Event, error) {
 func (d *DB) Update(ctx context.Context, id string) error {
 	return nil
 }
+
+func (d *DB) Close() error {
+	if d.db == nil {
+		return nil
+	}
+
+	d.logger.Info().Msg("Closing database connection...")
+	if err := d.db.Master.Close(); err != nil {
+		d.logger.Error().Err(err).Msg("Failed to close database connection")
+		return err
+	}
+
+	d.logger.Info().Msg("Database connection closed successfully")
+	return nil
+}

@@ -106,6 +106,7 @@ services:
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     restart: always
+    stop_grace_period: 10s 
     networks:
       - task5_network
 
