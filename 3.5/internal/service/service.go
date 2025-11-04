@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"threeFive/domain"
 	"threeFive/internal/db"
 
 	"github.com/rs/zerolog"
@@ -29,14 +32,32 @@ func (s *Serv) Gets() {
 
 }
 
-func (s *Serv) Book() {
-
-}
-
 func (s *Serv) Confirm() {
 
 }
 
-func (s *Serv) Events() {
+func (s *Serv) Create(ctx context.Context, event domain.Event) (string, error) {
 
+	id, err := s.db.Create(ctx, event)
+	if err != nil {
+		if errors.Is(err, domain.ErrDuplicateKey) {
+			return "", domain.ErrAlreadyExists
+		}
+		return "", fmt.Errorf("create event: %w", err)
+	}
+
+	return id, nil
+}
+
+func (s *Serv) Book(ctx context.Context, eventId string) (string, error) {
+
+	bookId, err := s.db.Book(ctx, eventId)
+	if err != nil {
+		if errors.Is(err, domain.ErrDuplicateKey) {
+			return "", domain.ErrAlreadyExists
+		}
+		return "", fmt.Errorf("create event: %w", err)
+	}
+
+	return bookId, nil
 }

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS events (
     description TEXT,
     date TIMESTAMP NOT NULL,
     total_seats INTEGER NOT NULL CHECK (total_seats > 0),
-    available_seats INTEGER NOT NULL CHECK (available_seats >= 0),
+    available_seats INTEGER NOT NULL CHECK (available_seats >= 0),  
     requires_payment BOOLEAN DEFAULT true,
     booking_ttl INTEGER NOT NULL DEFAULT 3600 CHECK (booking_ttl > 0),
     created_at TIMESTAMP DEFAULT NOW(),

@@ -13,57 +13,56 @@ type contextKey string
 const eventIDKey contextKey = "eventID"
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.Handlers) {
+	mux.Handle("/events", methodHandler(http.MethodPost, handlers.Create))
+	mux.HandleFunc("/events/", eventsRouter(handlers))
+}
 
-	mux.Handle("/events", methodHandler(http.MethodPost, handlers.Events))
-	// Все роуты вида /events/{id}/*
-	mux.HandleFunc("/events/", func(w http.ResponseWriter, r *http.Request) {
+func eventsRouter(handlers domain.Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/events/")
-		parts := strings.SplitN(strings.Trim(path, "/"), "/", 2)
+		parts := strings.Split(strings.Trim(path, "/"), "/")
 
-		// GET /events/ - список всех мероприятий
 		if len(parts) == 0 || parts[0] == "" {
-			if r.Method == http.MethodGet {
-				handlers.Gets(w, r)
-				return
-			}
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			http.Error(w, `{"error":"empty path not found"}`, http.StatusNotFound)
 			return
 		}
 
 		eventID := parts[0]
 		ctx := context.WithValue(r.Context(), eventIDKey, eventID)
+		r = r.WithContext(ctx)
 
-		// GET /events/{id} - информация о конкретном мероприятии
+		// GET /events/{id} — получение информации о мероприятии
 		if len(parts) == 1 {
-			if r.Method == http.MethodGet {
-				handlers.Gets(w, r.WithContext(ctx))
+			if r.Method != http.MethodGet {
+				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 				return
 			}
+			handlers.Gets(w, r)
+			return
+		}
+
+		// Проверка что есть action
+		if len(parts) != 2 {
+			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+			return
+		}
+
+		// POST /events/{id}/book или /events/{id}/confirm
+		if r.Method != http.MethodPost {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
-		// Роуты с действиями: /events/{id}/{action}
 		action := parts[1]
 		switch action {
 		case "book":
-			if r.Method == http.MethodPost {
-				handlers.Book(w, r.WithContext(ctx))
-				return
-			}
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-
+			handlers.Book(w, r)
 		case "confirm":
-			if r.Method == http.MethodPost {
-				handlers.Confirm(w, r.WithContext(ctx))
-				return
-			}
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-
+			handlers.Confirm(w, r)
 		default:
 			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		}
-	})
+	}
 }
 
 func methodHandler(method string, handler http.HandlerFunc) http.Handler {

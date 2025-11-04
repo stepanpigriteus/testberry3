@@ -3,16 +3,16 @@ package domain
 import "time"
 
 type Event struct {
-	ID              string        `db:"id"`
-	Title           string        `db:"title"`
-	Description     string        `db:"description"`
-	Date            time.Time     `db:"date"`
-	TotalSeats      int           `db:"total_seats"`
-	AvailableSeats  int           `db:"available_seats"`
-	RequiresPayment bool          `db:"requires_payment"`
-	BookingTTL      time.Duration `db:"booking_ttl"`
-	CreatedAt       time.Time     `db:"created_at"`
-	UpdatedAt       time.Time     `db:"updated_at"`
+	ID              string    `db:"id" json:"id"`
+	Title           string    `db:"title" json:"title"`
+	Description     string    `db:"description" json:"description"`
+	Date            time.Time `db:"date" json:"date"`
+	TotalSeats      int       `db:"total_seats" json:"total_seats"`
+	AvailableSeats  int       `db:"available_seats" json:"available_seats"`
+	RequiresPayment bool      `db:"requires_payment" json:"requires_payment"`
+	BookingTTL      int       `db:"booking_ttl" json:"booking_ttl"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type Booking struct {

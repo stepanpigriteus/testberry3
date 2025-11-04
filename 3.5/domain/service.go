@@ -1,8 +1,10 @@
 package domain
 
-type Service interface{
+import "context"
+
+type Service interface {
 	Gets()
-	Book()
+	Book(context.Context, string) (string, error)
 	Confirm()
-	Events()
+	Create(context.Context, Event) (string, error)
 }
