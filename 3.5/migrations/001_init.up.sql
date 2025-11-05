@@ -28,34 +28,26 @@ CREATE INDEX idx_users_email ON users (email);
 
 CREATE INDEX idx_users_role ON users (role);
 
-CREATE TABLE IF NOT EXISTS bookings (
+CREATE TABLE bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     event_id UUID NOT NULL REFERENCES events (id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users (id) ON DELETE SET NULL,
-    user_email VARCHAR(255) NOT NULL,
-    user_name VARCHAR(255) NOT NULL,
+    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (
-        status IN (
-            'pending',
-            'confirmed',
-            'cancelled',
-            'expired'
-        )
+        status IN ('pending', 'confirmed', 'cancelled', 'expired')
     ),
     created_at TIMESTAMP DEFAULT NOW(),
     expires_at TIMESTAMP NOT NULL,
     confirmed_at TIMESTAMP,
     CONSTRAINT chk_confirmed_at CHECK (
         (
-            status = 'confirmed'
-            AND confirmed_at IS NOT NULL
+            status = 'confirmed' AND confirmed_at IS NOT NULL
         )
         OR (
-            status != 'confirmed'
-            AND confirmed_at IS NULL
+            status != 'confirmed' AND confirmed_at IS NULL
         )
     )
 );
+
 
 CREATE INDEX idx_bookings_status_expires ON bookings (status, expires_at);
 

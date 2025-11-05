@@ -3,7 +3,9 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"threeFive/domain"
@@ -66,54 +68,51 @@ func (d *DB) Create(ctx context.Context, event domain.Event) (string, error) {
 
 }
 
-func (d *DB) Book(ctx context.Context, id string) (string, error) {
+func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, error) {
 	tx, err := d.db.Master.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
+
+	var dummy string
+	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id = $1`, userID).Scan(&dummy)
+	if err == sql.ErrNoRows {
+		return "", fmt.Errorf("user does not exist")
+	}
+	if err != nil {
+		return "", fmt.Errorf("select user: %w", err)
+	}
+
 	var availableSeats int
 	var bookingTTL int
-
-	err = tx.QueryRowContext(ctx,
-		`SELECT available_seats, booking_ttl FROM events WHERE id = $1 FOR UPDATE`,
-		id,
-	).Scan(&availableSeats, &bookingTTL)
+	err = tx.QueryRowContext(ctx, `
+		SELECT available_seats, booking_ttl
+		FROM events
+		WHERE id = $1
+		FOR UPDATE
+	`, eventID).Scan(&availableSeats, &bookingTTL)
 	if err == sql.ErrNoRows {
 		return "", domain.ErrNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("select event: %w", err)
 	}
+
 	if availableSeats <= 0 {
 		return "", domain.ErrInvalidSeats
 	}
 
-	var userID string
-	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email = $1`, "test_email").Scan(&userID)
-	if err == sql.ErrNoRows {
-		userID = uuid.New().String()
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO users (id, email, name, role)
-			VALUES ($1, $2, $3, 'user')
-		`, userID, "test_email", "test_name")
-		if err != nil {
-			return "", fmt.Errorf("insert user: %w", err)
-		}
-	} else if err != nil {
-		return "", fmt.Errorf("select user: %w", err)
-	}
-
 	bookingID := uuid.New().String()
 	expiresAt := time.Now().Add(time.Duration(bookingTTL) * time.Second)
+
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO bookings (id, event_id, user_email, user_name, status, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO bookings (id, event_id, user_id, status, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`,
 		bookingID,
-		id,
-		"user@example.com",
-		"Anonymous",
+		eventID,
+		userID,
 		"pending",
 		expiresAt,
 	)
@@ -125,7 +124,7 @@ func (d *DB) Book(ctx context.Context, id string) (string, error) {
 		UPDATE events
 		SET available_seats = available_seats - 1
 		WHERE id = $1
-	`, id)
+	`, eventID)
 	if err != nil {
 		return "", fmt.Errorf("update seats: %w", err)
 	}
@@ -160,8 +159,67 @@ func (d *DB) GetEvent(ctx context.Context, id string) (domain.Event, error) {
 	return event, nil
 }
 
-func (d *DB) Update(ctx context.Context, id string) error {
+func (d *DB) Update(ctx context.Context, eventId, bookId string) error {
+	tx, err := d.db.Master.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var status string
+	err = tx.QueryRowContext(ctx, `
+		SELECT status FROM bookings
+		WHERE event_id = $1 AND id = $2
+		FOR UPDATE
+	`, eventId, bookId).Scan(&status)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("booking not found")
+		}
+		return fmt.Errorf("check booking: %w", err)
+	}
+
+	if status != "pending" {
+		return fmt.Errorf("cannot confirm booking with status=%q", status)
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE bookings
+		SET status = 'confirmed', confirmed_at = NOW()
+		WHERE event_id = $1 AND id = $2
+	`, eventId, bookId)
+	if err != nil {
+		return fmt.Errorf("update booking: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
 	return nil
+}
+
+func (d *DB) CreateUser(ctx context.Context, user domain.User) (string, error) {
+	userId := uuid.New().String()
+	query := `
+		INSERT INTO users (id, email, name, role, telegram_id)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := d.db.ExecContext(ctx, query,
+		userId,
+		user.Email,
+		user.Name,
+		user.Role,
+		user.TelegramID,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return "", fmt.Errorf("user with email %s already exists", user.Email)
+		}
+		return "", fmt.Errorf("insert user: %w", err)
+	}
+
+	return string(userId), nil
 }
 
 func (d *DB) Close() error {

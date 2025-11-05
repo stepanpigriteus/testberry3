@@ -59,7 +59,6 @@ func (h *Handlers) Gets(w http.ResponseWriter, r *http.Request) {
 	event, err := h.serv.Gets(ctx, eventId)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("не удалось получить сщобытие: %v", err))
-
 	}
 	writeJSON(w, http.StatusOK, event)
 
@@ -73,8 +72,12 @@ func (h *Handlers) Book(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "eventId not found in context", http.StatusBadRequest)
 		return
 	}
-
-	bookID, err := h.serv.Book(ctx, eventID)
+	userID := r.URL.Query().Get("user")
+	if userID == "" {
+		http.Error(w, "userId not found in query", http.StatusBadRequest)
+		return
+	}
+	bookID, err := h.serv.Book(ctx, eventID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("failed to create booking")
 
@@ -99,6 +102,45 @@ func (h *Handlers) Book(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info().Msg("Confirm handler called")
+	ctx := r.Context()
+	eventID, ok := ctx.Value(eventIDKey).(string)
+	if !ok || eventID == "" {
+		http.Error(w, "eventId not found in context", http.StatusBadRequest)
+		return
+	}
+	bookId := r.URL.Query().Get("book")
+	if bookId == "" {
+		writeError(w, http.StatusBadRequest, "не указан id брони ")
+	}
+	err := h.serv.Confirm(ctx, eventID, bookId)
+	if err != nil {
+		h.logger.Err(err).Msg("не удалось подвтердить бронь")
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("не удалось подвтердить бронь: %v", err))
+	}
+
+}
+
+func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info().Msg("CreateUser handler called")
+	ctx := r.Context()
+	var user domain.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	id, err := h.serv.CreateUser(ctx, user)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		h.logger.Error().Err(err).Msg("failed to create user")
+		http.Error(w, "failed to create user", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{
+		"id": id,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {

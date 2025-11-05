@@ -14,6 +14,7 @@ const eventIDKey contextKey = "eventID"
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.Handlers) {
 	mux.Handle("/events", methodHandler(http.MethodPost, handlers.Create))
+	mux.Handle("/user", methodHandler(http.MethodPost, handlers.CreateUser))
 	mux.HandleFunc("/events/", eventsRouter(handlers))
 }
 

@@ -1,6 +1,8 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 type Event struct {
 	ID              string    `db:"id" json:"id"`
@@ -19,8 +21,6 @@ type Booking struct {
 	ID          string        `db:"id"`
 	EventID     string        `db:"event_id"`
 	UserID      *string       `db:"user_id"`
-	UserEmail   string        `db:"user_email"`
-	UserName    string        `db:"user_name"`
 	Status      BookingStatus `db:"status"`
 	CreatedAt   time.Time     `db:"created_at"`
 	ExpiresAt   time.Time     `db:"expires_at"`

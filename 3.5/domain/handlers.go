@@ -7,4 +7,5 @@ type Handlers interface {
 	Book(w http.ResponseWriter, r *http.Request)
 	Confirm(w http.ResponseWriter, r *http.Request)
 	Create(w http.ResponseWriter, r *http.Request)
+	CreateUser(w http.ResponseWriter, r *http.Request)
 }
