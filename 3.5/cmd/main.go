@@ -43,6 +43,8 @@ func main() {
 	handlers := httpsh.NewHandlers(ctx, serv, zlog.Logger)
 	zlog.Logger.Info().Msg("[4.3/5] Start Server")
 	server := httpsh.NewServer(configs.AppPort, zlog.Logger, serv, handlers, dataBase)
+	go pkg.StartBookingCleaner(ctx, dataBase.GetMaster())
 	server.RunServer(ctx)
 	zlog.Logger.Info().Msg("[5/5] All components works!")
+
 }

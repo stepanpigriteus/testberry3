@@ -161,3 +161,8 @@ func (d *DB) Close() error {
 	d.logger.Info().Msg("Database connection closed successfully")
 	return nil
 }
+
+
+func (d *DB) GetMaster() *sql.DB {
+	return d.db.Master
+}

@@ -1,8 +1,12 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"database/sql"
+)
 
 type DB interface {
 	Create(context.Context, Event) (string, error)
 	Book(context.Context, string) (string, error)
+	GetMaster() *sql.DB
 }
