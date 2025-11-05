@@ -33,7 +33,6 @@ func NewDb(ctx context.Context, masterDSN string, slaveDSNs []string, logger zer
 
 func (d *DB) Create(ctx context.Context, event domain.Event) (string, error) {
 	id := uuid.New()
-	fmt.Println(event.TotalSeats)
 	query := `
 		INSERT INTO events (
 			id, title, description, date,
@@ -140,6 +139,24 @@ func (d *DB) Book(ctx context.Context, id string) (string, error) {
 
 func (d *DB) GetEvent(ctx context.Context, id string) (domain.Event, error) {
 	var event domain.Event
+	query := `SELECT id, title, description, date, total_seats, available_seats, requires_payment, booking_ttl, created_at
+	          FROM events WHERE id = $1`
+
+	err := d.db.Master.QueryRowContext(ctx, query, id).Scan(
+		&event.ID,
+		&event.Title,
+		&event.Description,
+		&event.Date,
+		&event.TotalSeats,
+		&event.AvailableSeats,
+		&event.RequiresPayment,
+		&event.BookingTTL,
+		&event.CreatedAt,
+	)
+	if err != nil {
+		return domain.Event{}, err
+	}
+	fmt.Println(event)
 	return event, nil
 }
 
@@ -161,7 +178,6 @@ func (d *DB) Close() error {
 	d.logger.Info().Msg("Database connection closed successfully")
 	return nil
 }
-
 
 func (d *DB) GetMaster() *sql.DB {
 	return d.db.Master

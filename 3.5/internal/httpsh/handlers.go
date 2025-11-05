@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"threeFive/domain"
 
@@ -52,6 +53,16 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) Gets(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info().Msg("EventGets handler called")
+	ctx := r.Context()
+	// /events/{id}
+	eventId := strings.TrimPrefix(r.URL.Path, "/events/")
+	event, err := h.serv.Gets(ctx, eventId)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("не удалось получить сщобытие: %v", err))
+
+	}
+	writeJSON(w, http.StatusOK, event)
+
 }
 
 func (h *Handlers) Book(w http.ResponseWriter, r *http.Request) {
@@ -91,8 +102,9 @@ func (h *Handlers) Confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
 	json.NewEncoder(w).Encode(data)
 }
 

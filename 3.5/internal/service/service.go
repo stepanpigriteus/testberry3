@@ -28,8 +28,14 @@ func NewService(ctx context.Context, producer *kafka.Producer, consumer *kafka.C
 	}
 }
 
-func (s *Serv) Gets() {
+func (s *Serv) Gets(ctx context.Context, eventId string) (domain.Event, error) {
 
+	event, err := s.db.GetEvent(ctx, eventId)
+	if err != nil {
+		return domain.Event{}, err
+	}
+
+	return event, nil
 }
 
 func (s *Serv) Confirm() {
