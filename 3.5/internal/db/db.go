@@ -61,11 +61,14 @@ func (d *DB) Create(ctx context.Context, event domain.Event) (string, error) {
 		int(ttl),
 	).Scan(&newID)
 	if err != nil {
-		return "", err
+
+		if strings.Contains(err.Error(), "duplicate key") {
+			return "", domain.ErrDuplicateKey
+		}
+		return "", fmt.Errorf("insert event: %w", err)
 	}
 
 	return newID, nil
-
 }
 
 func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, error) {
@@ -73,12 +76,16 @@ func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, e
 	if err != nil {
 		return "", fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			d.logger.Error().Err(err).Msg("rollback failed")
+		}
+	}()
 
 	var dummy string
 	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id = $1`, userID).Scan(&dummy)
 	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("user does not exist")
+		return "", domain.ErrUserNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("select user: %w", err)
@@ -93,6 +100,7 @@ func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, e
 		FOR UPDATE
 	`, eventID).Scan(&availableSeats, &bookingTTL)
 	if err == sql.ErrNoRows {
+
 		return "", domain.ErrNotFound
 	}
 	if err != nil {
@@ -105,7 +113,6 @@ func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, e
 
 	bookingID := uuid.New().String()
 	expiresAt := time.Now().Add(time.Duration(bookingTTL) * time.Second)
-
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO bookings (id, event_id, user_id, status, expires_at)
 		VALUES ($1, $2, $3, $4, $5)
@@ -117,6 +124,10 @@ func (d *DB) Book(ctx context.Context, eventID string, userID string) (string, e
 		expiresAt,
 	)
 	if err != nil {
+
+		if strings.Contains(err.Error(), "duplicate key") {
+			return "", domain.ErrDuplicateKey
+		}
 		return "", fmt.Errorf("insert booking: %w", err)
 	}
 
@@ -153,10 +164,52 @@ func (d *DB) GetEvent(ctx context.Context, id string) (domain.Event, error) {
 		&event.CreatedAt,
 	)
 	if err != nil {
-		return domain.Event{}, err
+
+		if err == sql.ErrNoRows {
+			return domain.Event{}, domain.ErrNotFound
+		}
+		return domain.Event{}, fmt.Errorf("query event: %w", err)
 	}
 	fmt.Println(event)
 	return event, nil
+}
+
+func (d *DB) GetAll(ctx context.Context) ([]domain.Event, error) {
+	rows, err := d.db.Master.QueryContext(ctx, `
+		SELECT id, title, description, date, total_seats, available_seats, requires_payment, booking_ttl, created_at
+		FROM events
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []domain.Event
+
+	for rows.Next() {
+		var e domain.Event
+		if err := rows.Scan(
+			&e.ID,
+			&e.Title,
+			&e.Description,
+			&e.Date,
+			&e.TotalSeats,
+			&e.AvailableSeats,
+			&e.RequiresPayment,
+			&e.BookingTTL,
+			&e.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan event: %w", err)
+		}
+		events = append(events, e)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	fmt.Println("Loaded events:", events)
+	return events, nil
 }
 
 func (d *DB) Update(ctx context.Context, eventId, bookId string) error {
@@ -164,7 +217,11 @@ func (d *DB) Update(ctx context.Context, eventId, bookId string) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			d.logger.Error().Err(err).Msg("rollback failed")
+		}
+	}()
 
 	var status string
 	err = tx.QueryRowContext(ctx, `
@@ -174,13 +231,13 @@ func (d *DB) Update(ctx context.Context, eventId, bookId string) error {
 	`, eventId, bookId).Scan(&status)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("booking not found")
+			return domain.ErrNotFound
 		}
 		return fmt.Errorf("check booking: %w", err)
 	}
 
 	if status != "pending" {
-		return fmt.Errorf("cannot confirm booking with status=%q", status)
+		return domain.ErrInvalidStatus
 	}
 
 	_, err = tx.ExecContext(ctx, `
@@ -214,7 +271,7 @@ func (d *DB) CreateUser(ctx context.Context, user domain.User) (string, error) {
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
-			return "", fmt.Errorf("user with email %s already exists", user.Email)
+			return "", domain.ErrDuplicateKey
 		}
 		return "", fmt.Errorf("insert user: %w", err)
 	}

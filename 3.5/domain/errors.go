@@ -3,9 +3,11 @@ package domain
 import "errors"
 
 var (
-	ErrInvalidSeats   = errors.New("invalid number of seats")
-	ErrAlreadyExists  = errors.New("event already exists")
 	ErrNotFound       = errors.New("not found")
-	ErrInvalidBooking = errors.New("invalid booking data")
+	ErrAlreadyExists  = errors.New("already exists")
+	ErrInvalidSeats   = errors.New("invalid seats")
+	ErrInvalidBooking = errors.New("invalid booking")
 	ErrDuplicateKey   = errors.New("duplicate key")
+	ErrUserNotFound   = errors.New("user not found")
+	ErrInvalidStatus  = errors.New("invalid status")
 )

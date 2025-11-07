@@ -1,0 +1,291 @@
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Админ панель - События</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            h1 {
+                margin-bottom: 30px;
+            }
+            .create-section {
+                background: white;
+                padding: 20px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                border: 1px solid #ddd;
+            }
+            .create-section h2 {
+                margin-bottom: 15px;
+                font-size: 18px;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            input, textarea {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+            textarea {
+                resize: vertical;
+                min-height: 60px;
+            }
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+            .btn {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                cursor: pointer;
+            }
+            .btn-primary {
+                background: #007bff;
+                color: white;
+            }
+            .message {
+                padding: 15px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+            }
+            .message-success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .message-error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            table {
+                width: 100%;
+                background: white;
+                border-collapse: collapse;
+                border: 1px solid #ddd;
+            }
+            th, td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            th {
+                background: #f8f9fa;
+                font-weight: bold;
+            }
+            tr:hover {
+                background: #f8f9fa;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Административная панель</h1>
+            
+            <div class="create-section">
+                <h2>Создать событие</h2>
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="title" placeholder="Название события">
+                </div>
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="description" placeholder="Описание события"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Дата и время</label>
+                        <input type="datetime-local" id="date">
+                    </div>
+                    <div class="form-group">
+                        <label>Количество мест</label>
+                        <input type="number" id="totalSeats" placeholder="100">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Время бронирования (секунды)</label>
+                        <input type="number" id="bookingTTL" placeholder="3600">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="requiresPayment">
+                            Требуется оплата
+                        </label>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="createEvent()">Создать событие</button>
+            </div>
+
+            <div id="message"></div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Название</th>
+                        <th>Дата</th>
+                        <th>Всего мест</th>
+                        <th>Свободно</th>
+                        <th>Время до начала</th>
+                        <th>Оплата</th>
+                    </tr>
+                </thead>
+                <tbody id="eventsTable"></tbody>
+            </table>
+        </div>
+
+        <script>
+            const API_BASE = 'http://localhost:8080';
+
+            async function createsEvent() {
+                const title = document.getElementById('title').value;
+                const description = document.getElementById('description').value;
+                const date = document.getElementById('date').value;
+                const totalSeats = parseInt(document.getElementById('totalSeats').value);
+                const bookingTTL = parseInt(document.getElementById('bookingTTL').value) || 3600;
+                const requiresPayment = document.getElementById('requiresPayment').checked;
+
+                if (!title || !date || !totalSeats) {
+                    showMessage('Заполните обязательные поля', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE}/events`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            title: title,
+                            description: description,
+                            date: new Date(date).toISOString(),
+                            total_seats: totalSeats,
+                            available_seats: totalSeats,
+                            requires_payment: requiresPayment,
+                            booking_ttl: bookingTTL
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.text();
+                        throw new Error(err);
+                    }
+
+                    const data = await res.json();
+                    showMessage(`Событие создано! ID: ${data.eventId}`, 'success');
+                    
+                    document.getElementById('title').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('date').value = '';
+                    document.getElementById('totalSeats').value = '';
+                    document.getElementById('bookingTTL').value = '';
+                    document.getElementById('requiresPayment').checked = false;
+                    
+                    loadEvents();
+                } catch (err) {
+                    showMessage('Ошибка: ' + err.message, 'error');
+                }
+            }
+
+            async function loadEvents() {
+                try {
+                    const res = await fetch(`${API_BASE}/events`);
+                    if (!res.ok) throw new Error('Не удалось загрузить события');
+                    
+                    const events = await res.json();
+                    displayEvents(events);
+                } catch (err) {
+                    showMessage('Ошибка загрузки: ' + err.message, 'error');
+                }
+            }
+
+            function displayEvents(events) {
+    const tbody = document.getElementById('eventsTable');
+
+    if (!events || events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">Нет событий</td></tr>';
+        return;
+    }
+
+    const rows = events.map(e => {
+        const eventDate = new Date(e.date);
+        const now = new Date();
+        const diffMs = eventDate - now;
+        const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+
+        const hours = Math.floor(diffSec / 3600);
+        const minutes = Math.floor((diffSec % 3600) / 60);
+        const seconds = diffSec % 60;
+
+        let timeLeft;
+        if (diffSec <= 0) {
+            timeLeft = 'Прошло';
+        } else if (hours > 0) {
+            timeLeft = `${hours}ч ${minutes}м`;
+        } else if (minutes > 0) {
+            timeLeft = `${minutes}м ${seconds}с`;
+        } else {
+            timeLeft = `${seconds}с`;
+        }
+
+        const formattedDate = eventDate.toLocaleDateString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `
+            <tr>
+                <td>${e.title}</td>
+                <td>${formattedDate}</td>
+                <td>${e.total_seats || 0}</td>
+                <td>${e.available_seats || 0}</td>
+                <td>${timeLeft}</td>
+                <td>${e.requires_payment ? 'Да' : 'Нет'}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = rows.join('');
+}
+
+
+            function showMessage(text, type) {
+                const msg = document.getElementById('message');
+                msg.className = `message message-${type}`;
+                msg.textContent = text;
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 5000);
+            }
+
+            loadEvents();
+            setInterval(loadEvents, 10000);
+        </script>
+    </body>
+    </html>

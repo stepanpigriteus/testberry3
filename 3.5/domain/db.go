@@ -11,4 +11,5 @@ type DB interface {
 	GetMaster() *sql.DB
 	Update(context.Context, string, string) error
 	CreateUser(context.Context, User) error
+	GetAll(context.Context) ([]Event, error)
 }

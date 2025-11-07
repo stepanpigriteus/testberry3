@@ -13,7 +13,16 @@ type contextKey string
 const eventIDKey contextKey = "eventID"
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.Handlers) {
-	mux.Handle("/events", methodHandler(http.MethodPost, handlers.Create))
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			handlers.Create(w, r)
+		case http.MethodGet:
+			handlers.GetAll(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	mux.Handle("/user", methodHandler(http.MethodPost, handlers.CreateUser))
 	mux.HandleFunc("/events/", eventsRouter(handlers))
 }

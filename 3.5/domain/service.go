@@ -8,4 +8,5 @@ type Service interface {
 	Confirm(context.Context, string, string) error
 	Create(context.Context, Event) (string, error)
 	CreateUser(context.Context, User) (string, error)
+	GetAll(context.Context) ([]Event, error)
 }

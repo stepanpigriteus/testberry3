@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>События - Бронирование</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin-bottom: 30px;
+        }
+        .user-section {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .user-section h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .user-form {
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-confirm {
+            background: #ffc107;
+            color: black;
+            margin-top: 10px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .event-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+        }
+        .event-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .event-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .event-info {
+            margin-bottom: 15px;
+        }
+        .info-row {
+            padding: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .message-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .booking-input {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Бронирование событий</h1>
+        
+        <div class="user-section">
+            <h2>Пользователь</h2>
+            <div class="user-form">
+                <input type="text" id="userId" placeholder="ID пользователя (если есть)" style="flex: 2;">
+                <button class="btn btn-primary" onclick="setUserId()">Использовать ID</button>
+            </div>
+            <div style="margin: 15px 0; text-align: center;">или</div>
+            <div class="user-form">
+                <input type="email" id="userEmail" placeholder="Email">
+                <input type="text" id="userName" placeholder="Имя">
+                <input type="text" id="userTelegram" placeholder="Telegram ID">
+                <button class="btn btn-primary" onclick="createUser()">Создать нового</button>
+            </div>
+            <div id="currentUser" style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; display: none;">
+                <strong>Текущий пользователь:</strong> <span id="userIdDisplay"></span>
+            </div>
+        </div>
+
+        <div id="message"></div>
+        <div id="eventsContainer" class="events-list"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentUserId = '';
+
+        async function createUser() {
+            const email = document.getElementById('userEmail').value;
+            const name = document.getElementById('userName').value;
+            const telegram = document.getElementById('userTelegram').value;
+
+            if (!email || !name) {
+                showMessage('Заполните email и имя', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/user`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        email: email,
+                        name: name,
+                        role: 'user',
+                        telegram_id: telegram
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
+
+                const data = await res.json();
+                currentUserId = data.id;
+                showMessage(`Пользователь создан! ID: ${data.id}`, 'success');
+                document.getElementById('userEmail').value = '';
+                document.getElementById('userName').value = '';
+                document.getElementById('userTelegram').value = '';
+            } catch (err) {
+                showMessage('Ошибка: ' + err.message, 'error');
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const res = await fetch(`${API_BASE}/events`);
+                if (!res.ok) throw new Error('Не удалось загрузить события');
+                
+                const events = await res.json();
+                displayEvents(events);
+            } catch (err) {
+                showMessage('Ошибка загрузки: ' + err.message, 'error');
+            }
+        }
+
+        function displayEvents(events) {
+            const container = document.getElementById('eventsContainer');
+            
+            if (!events || events.length === 0) {
+                container.innerHTML = '<p>Нет доступных событий</p>';
+                return;
+            }
+
+            container.innerHTML = events.map(e => {
+                const date = new Date(e.date).toLocaleDateString('ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const available = e.available_seats || 0;
+                const total = e.total_seats || 0;
+
+                return `
+                    <div class="event-card">
+                        <div class="event-title">${e.title}</div>
+                        <div class="event-description">${e.description || 'Без описания'}</div>
+                        <div class="event-info">
+                            <div class="info-row">
+                                <span>Дата:</span>
+                                <span>${date}</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Всего мест:</span>
+                                <span>${total}</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Доступно:</span>
+                                <span>${available}</span>
+                            </div>
+                            ${e.requires_payment ? '<div class="info-row"><span>Требуется оплата</span></div>' : ''}
+                        </div>
+                        <button class="btn btn-success" onclick="bookEvent('${e.id}')" ${available === 0 ? 'disabled' : ''}>
+                            Забронировать
+                        </button>
+                        <input type="text" class="booking-input" id="booking-${e.id}" placeholder="ID брони для подтверждения" style="display:none;">
+                        <button class="btn btn-confirm" id="confirm-${e.id}" onclick="confirmBooking('${e.id}')" style="display:none;">
+                            Подтвердить бронь
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function bookEvent(eventId) {
+            if (!currentUserId) {
+                showMessage('Сначала создайте пользователя!', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/events/${eventId}/book?user=${currentUserId}`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
+
+                const data = await res.json();
+                showMessage(`Бронь создана! ID: ${data.book_id}`, 'success');
+                
+                document.getElementById(`booking-${eventId}`).style.display = 'block';
+                document.getElementById(`confirm-${eventId}`).style.display = 'block';
+                document.getElementById(`booking-${eventId}`).value = data.book_id;
+                
+                loadEvents();
+            } catch (err) {
+                showMessage('Ошибка бронирования: ' + err.message, 'error');
+            }
+        }
+
+        async function confirmBooking(eventId) {
+            const bookingId = document.getElementById(`booking-${eventId}`).value;
+            
+            if (!bookingId) {
+                showMessage('Введите ID брони', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/events/${eventId}/confirm?book=${bookingId}`, {
+                    method: 'POST'
+                });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
+
+                showMessage('Бронь подтверждена!', 'success');
+                document.getElementById(`booking-${eventId}`).value = '';
+                document.getElementById(`booking-${eventId}`).style.display = 'none';
+                document.getElementById(`confirm-${eventId}`).style.display = 'none';
+                loadEvents();
+            } catch (err) {
+                showMessage('Ошибка подтверждения: ' + err.message, 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = `message message-${type}`;
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        }
+
+        loadEvents();
+        setInterval(loadEvents, 10000);
+    </script>
+</body>
+</html>
