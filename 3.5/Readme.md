@@ -1,6 +1,8 @@
+
+Запуск проекта:
 python3 -m http.server 8080
-
-
+admin.html
+user.html
 
 Сервис позволяет:
 создавать события (/events)

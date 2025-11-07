@@ -150,7 +150,7 @@
             const email = document.getElementById('userEmail').value;
             const name = document.getElementById('userName').value;
             const telegram = document.getElementById('userTelegram').value;
-
+            console.log(telegram, name)
             if (!email || !name) {
                 showMessage('Заполните email и имя', 'error');
                 return;
@@ -164,8 +164,9 @@
                         email: email,
                         name: name,
                         role: 'user',
-                        telegram_id: telegram
+                        TelegramID: telegram
                     })
+                    
                 });
 
                 if (!res.ok) {

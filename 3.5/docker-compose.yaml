@@ -1,54 +1,6 @@
 version: '3.8'
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
-      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
-    ports:
-      - "${ZOOKEEPER_CLIENT_PORT}:${ZOOKEEPER_CLIENT_PORT}"
-    restart: always
-    networks:
-      - task5_network
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: kafka
-    depends_on:
-      - zookeeper
-    ports:
-      - "${KAFKA_PORT_1}:${KAFKA_PORT_1}"
-      - "${KAFKA_PORT_2}:${KAFKA_PORT_2}"
-    environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
-      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
-      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
-      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
-    restart: always
-    networks:
-      - task5_network
-    healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
-
-  kafka-init:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: kafka_init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    entrypoint: ["/bin/bash", "-c"]
-    command: >
-      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tasks --replication-factor 1 --partitions 1"
-    networks:
-      - task5_network
-    restart: "no"
+ 
 
   postgres:
     image: timescale/timescaledb:latest-pg16
@@ -97,15 +49,10 @@ services:
     ports:
       - "${APP_PORT}:${APP_PORT}"
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
       migrate:
         condition: service_completed_successfully
     environment:
       APP_PORT: ${APP_PORT}
-      KAFKA_BROKERS: kafka:${KAFKA_PORT_1}
-      KAFKA_TOPIC: ${KAFKA_TOPIC}
-      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     restart: always
     stop_grace_period: 10s 

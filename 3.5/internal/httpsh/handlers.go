@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -157,6 +158,7 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	fmt.Println(user)
 	id, err := h.serv.CreateUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, domain.ErrDuplicateKey) {
