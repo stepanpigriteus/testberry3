@@ -5,28 +5,47 @@ import (
 	"threeSixth/domain"
 )
 
-type contextKey string
-
-const eventIDKey contextKey = "eventID"
+type Route struct {
+	Method        string
+	Path          string
+	Handler       http.HandlerFunc
+	MiddlewareLog func(http.Handler) http.Handler
+}
 
 func RegisterRoutes(mux *http.ServeMux, handlers domain.Handlers) {
-	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
-
-	})
-
+	routes := []Route{
+		{Method: http.MethodPost, Path: "/items", Handler: handlers.CreateItem},
+		{Method: http.MethodGet, Path: "/items", Handler: handlers.GetItems},
+		{Method: http.MethodPut, Path: "/items/", Handler: handlers.UpdateItem},
+		{Method: http.MethodDelete, Path: "/items/", Handler: handlers.DeleteItem},
+		{Method: http.MethodGet, Path: "/analytics/", Handler: handlers.GetAnalytics},
+	}
+	pathHandlers := make(map[string][]Route)
+	for _, route := range routes {
+		pathHandlers[route.Path] = append(pathHandlers[route.Path], route)
+	}
+	for path, routeList := range pathHandlers {
+		mux.Handle(path, multiMethodHandler(routeList))
+	}
 }
 
-func methodHandler(method string, handler http.HandlerFunc) http.Handler {
+func multiMethodHandler(routes []Route) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
+		for _, route := range routes {
+			if r.Method == route.Method {
+				handler := http.Handler(route.Handler)
+				finalHandler := applyMiddleware(handler, route.MiddlewareLog)
+				finalHandler.ServeHTTP(w, r)
+				return
+			}
 		}
-		handler(w, r)
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 	})
 }
 
-func GetEventID(r *http.Request) (string, bool) {
-	id, ok := r.Context().Value(eventIDKey).(string)
-	return id, ok
+func applyMiddleware(h http.Handler, middleware func(http.Handler) http.Handler) http.Handler {
+	if middleware != nil {
+		h = middleware(h)
+	}
+	return h
 }

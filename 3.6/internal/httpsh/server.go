@@ -62,7 +62,6 @@ func (s *Server) RunServer(ctx context.Context) error {
 
 	go func() {
 		s.logger.Info().Msg("Starting server on port: " + s.port)
-		// Отправляем только реальные ошибки, не ErrServerClosed
 		if err := s.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
@@ -82,7 +81,6 @@ func (s *Server) RunServer(ctx context.Context) error {
 		s.logger.Info().Msg("Context cancelled")
 	}
 
-	// Graceful shutdown
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -96,7 +94,6 @@ func (s *Server) RunServer(ctx context.Context) error {
 		return err
 	}
 
-	// Закрываем соединение с БД
 	if s.db != nil {
 		s.logger.Info().Msg("Closing database connection...")
 		if err := s.db.Close(); err != nil {

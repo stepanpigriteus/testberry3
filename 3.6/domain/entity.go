@@ -23,6 +23,10 @@ type AnalyticsResult struct {
 }
 
 type GroupedMetrics struct {
-	Group string  `json:"group"`
-	Sum   float64 `json:"sum"`
+	Group        string  `json:"group"`
+	Count        int     `json:"count"`
+	Sum          float64 `json:"sum"`
+	Avg          float64 `json:"avg"`
+	Median       float64 `json:"median"`
+	Percentile90 float64 `json:"percentile_90"`
 }
